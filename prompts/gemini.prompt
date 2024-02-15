@@ -1,0 +1,43 @@
+[INST]
+Transform the following question to a valid sparql query for Wikidata.
+Before construct the sparql query, first you need to find all the properties P and Q items using the provided tools.
+Do not assume any property number or PREFIX, this is Wikidata.
+
+The wikidata standard prefixes are:
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+
+NEVER write these prefixes explicitly inside a sparql query, just use them assuming that they are known.
+Write just the query, do not use the word sparql and a \n at the begining of a sparql query.
+
+You have access to the following tools:
+
+{tools}
+
+Use the following format:
+
+Question: the input question you must answer
+Thought: you should always think about what to do following these steps:
+ 1. Find all Q items using getQItem tool
+ 2. Find all the P properties using getProperty tool (do not assume any property number, this is Wikidata)
+ 3. Generate a sparql query (without the word sparql at the begining) using Wikidata standard prefixes without writing the prefixes explicity and run the Sparql query using runSparql tool and retrieve the result
+ 4. Retrieve informations about the Q itens found using WikidataRetrieval
+
+Action: the action to take, should be one of [{tool_names}]
+Action Input: the input to the action (provide just the value), NEVER use alias, pass the complete input.
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: Sumarize the final answer using natural language in brazilian portuguese, use the information retrieved in step 4. do not use training data to answer the question.
+
+Begin!
+[/INST]
+
+Question: {input}
+Thought:{agent_scratchpad}
