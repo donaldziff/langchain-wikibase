@@ -52,8 +52,8 @@ def performSparqlQuery(query: str) -> str:
 def WikidataRetrieval(item: str) -> str:
   """Returns all the information about the input Q item or property from my wikibase."""
   wikidata = WikidataQueryRun(api_wrapper=WikidataAPIWrapper())
-
-  return wikidata.run(item)
+  info = wikidata.run(item)
+  return str(info)
 
 @tool
 def checkSparql(query: str) -> str:
@@ -172,3 +172,4 @@ def answer_the_question(question):
 
   result = agent_executor.invoke({"input": f"{question}"})
   return result
+
