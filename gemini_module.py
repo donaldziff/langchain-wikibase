@@ -172,36 +172,3 @@ def answer_the_question(question):
 
   result = agent_executor.invoke({"input": f"{question}"})
   return result
-
-def parse_arguments():
-    parser = argparse.ArgumentParser(description='Ask questions to Wikidata using the power of LLMs.')
-
-    return parser.parse_args()
-
-def main():
-  args = parse_arguments()
-
-  while True:
-      query = input("\nEnter a query: ")
-      if query == "exit":
-          break
-      if query.strip() == "":
-          continue
-      # Get the answer from the agent
-      start = time.time()
-      result = answer_the_question(query)
-      end = time.time()
-        
-      start_readable = datetime.utcfromtimestamp(start)
-      end_readable = datetime.utcfromtimestamp(end)
-
-
-      # Print the result
-      print("\n\n> Question:")
-      print(query)
-      print(result)
-      print("start time:", start_readable)
-      print("end time", end_readable)
-
-if __name__ == '__main__':
-  main()
