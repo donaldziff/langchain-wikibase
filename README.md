@@ -1,14 +1,7 @@
 # langchain-wikibase
 
-This repository contains work on a langchain agent for question answering against a wikibase instance.
+This repository contains work on a langchain agent for question answering against a Wikidata or any local instance of Wikibase/Mediawiki.
 
-At present, this work is very preliminary. The code is contained in jupyter notebooks only. Eventually,
-this code should be converted into python code that can be packaged for easy use with langchain apps.
+We've added agents that can connect to locally running LLMs via Ollama, like Mixtral 70b and remote running via API like Google Gemini pro. Also, a simple chatbot user interface built with Gradio was added.
 
-See the issues list for
-This repository contains work on a langchain agent for question answering against a wikibase instance.
-
-At present, this work is very preliminary. The code is contained in jupyter notebooks only. Eventually,
-this code should be converted into python code that can be packaged for easy use with langchain apps.
-
-Contributions are welcome! 
+At present, this work is very preliminary, contributions are welcome! 
