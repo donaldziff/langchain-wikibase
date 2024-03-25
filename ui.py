@@ -17,15 +17,15 @@ def result(question, history):
 demo = gr.ChatInterface(
     result, 
     chatbot=gr.Chatbot(height=300),
-    textbox=gr.Textbox(placeholder="Faça uma pergunta sobre alguma informação da Wikidata:", container=False, scale=7),
-    title="Wikidata Chat",
+    #textbox=gr.Textbox(placeholder="Faça uma pergunta sobre alguma informação da Wikidata:", container=False, scale=7),
+    title="Wikidata Chat ✨",
     description="Faça uma pergunta para a Wikidata!",
     theme="soft",
     examples=['Qual o PIB do Brasil?', 'Qual a população de São Paulo', "Quem foi Albert Einstein?"],
     cache_examples=False,
-    undo_btn="Apagar último",
-    clear_btn="Limpar",
+    undo_btn="⬅️ Apagar último",
+    clear_btn="🗑️ Limpar",
     )
 
 if __name__ == "__main__":
-    demo.launch(share=True)   
+    demo.launch(server_name="10.0.2.88")

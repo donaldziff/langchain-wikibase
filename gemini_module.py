@@ -50,27 +50,10 @@ def performSparqlQuery(query: str) -> str:
 
 @tool
 def WikidataRetrieval(item: str) -> str:
-  """Returns all the information about the input Q item or property from my wikibase."""
+  """Returns all the information about the input name, label, Q item or property from Wikidata."""
   wikidata = WikidataQueryRun(api_wrapper=WikidataAPIWrapper())
   info = wikidata.run(item)
   return str(info)
-
-@tool
-def checkSparql(query: str) -> str:
-  """Given a SPARQL query check if is valid."""
-
-  response = performSparqlQuery(query)
-
-  if response.status_code != 200:
-      error_message = extract_error_message(response)
-      if error_message:
-          return f'Query failed with this syntax error: {error_message}, try to fix it with another one.'
-      else:
-        return 'Query failed, try another one.'
-
-#  print(f"Sparql results: {response.json()}")
-
-  return 'Query is valid'
 
 @tool
 def runSparql(query: str) -> str:
@@ -89,7 +72,7 @@ def runSparql(query: str) -> str:
 
 @tool
 def getQItem(name: str) -> str:
-  """Returns the Q item from my wikibase."""
+  """Returns the Q item from Wikidata."""
 
   name = str(name).strip("'").strip('"')
 
@@ -108,7 +91,7 @@ def getQItem(name: str) -> str:
 
 @tool
 def getProperty(name: str) -> str:
-  """Returns the property from my wikibase."""
+  """Returns the property from Wikidata."""
 
   name = str(name).strip("'").strip('"')
 
@@ -153,7 +136,7 @@ def answer_the_question(question):
   else:
       llm = ChatGoogleGenerativeAI(model="gemini-pro")
 
-  tools = [getQItem, getProperty, checkSparql, runSparql, WikidataRetrieval]
+  tools = [getQItem, getProperty, runSparql, WikidataRetrieval]
   prompt = load_prompt_file('prompts/gemini.prompt')
 
   agent = create_react_agent(llm, tools, prompt)
