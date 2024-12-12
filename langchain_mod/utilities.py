@@ -1,5 +1,7 @@
 """Util that calls Wikidata."""
 
+import os
+from dotenv import load_dotenv
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -8,70 +10,18 @@ from langchain_core.pydantic_v1 import BaseModel, root_validator
 
 logger = logging.getLogger(__name__)
 
-WIKIDATA_MAX_QUERY_LENGTH = 300
-# Common properties you probably want to see filtered from https://www.wikidata.org/wiki/Wikidata:Database_reports/List_of_properties/all
-DEFAULT_PROPERTIES = [
-    "P31",
-    "P279",
-    "P27",
-    "P361",
-    "P527",
-    "P495",
-    "P17",
-    "P585",
-    "P131",
-    "P106",
-    "P21",
-    "P569",
-    "P570",
-    "P577",
-    "P50",
-    "P571",
-    "P641",
-    "P625",
-    "P19",
-    "P69",
-    "P108",
-    "P136",
-    "P39",
-    "P161",
-    "P20",
-    "P101",
-    "P179",
-    "P175",
-    "P7937",
-    "P57",
-    "P607",
-    "P509",
-    "P800",
-    "P449",
-    "P580",
-    "P582",
-    "P276",
-    "P69",
-    "P112",
-    "P740",
-    "P159",
-    "P452",
-    "P102",
-    "P1142",
-    "P1387",
-    "P1576",
-    "P140",
-    "P178",
-    "P287",
-    "P25",
-    "P22",
-    "P40",
-    "P185",
-    "P802",
-    "P1416",
-]
-DEFAULT_LANG_CODE = "en"
-WIKIDATA_USER_AGENT = "langchain-wikidata"
-WIKIDATA_API_URL = "https://www.wikidata.org/w/api.php"
-WIKIDATA_REST_API_URL = "https://www.wikidata.org/w/rest.php/wikibase/v0/"
+load_dotenv(dotenv_path='/u01/app/langchain-test-wikibase-agent/.env')
 
+WIKIDATA_MAX_QUERY_LENGTH = int(os.getenv('WIKIDATA_MAX_QUERY_LENGTH'))
+# Default properties are common properties you want to see filtered from https://www.wikidata.org/wiki/Wikidata:Database_reports/List_of_properties/all
+DEFAULT_PROPERTIES = []
+DEFAULT_LANG_CODE = os.getenv('WIKIBASE_LANGUAGE')
+WIKIDATA_USER_AGENT = "langchain-wikidata"
+WIKIDATA_API_URL = os.getenv('MEDIAWIKI_API_URL')
+WIKIDATA_REST_API_URL = os.getenv('MEDIAWIKI_REST_API_URL')
+TOP_K_RESULTS = os.getenv('TOP_K_RESULTS')
+DOC_CONTENT_CHARS_MAX = os.getenv('DOC_CONTENT_CHARS_MAX')
+WIKIBASE_URL = os.getenv('WIKIBASE_URL')
 
 class WikidataAPIWrapper(BaseModel):
     """Wrapper around the Wikidata API.
@@ -86,9 +36,9 @@ class WikidataAPIWrapper(BaseModel):
 
     wikidata_mw: Any  #: :meta private:
     wikidata_rest: Any  # : :meta private:
-    top_k_results: int = 2
+    top_k_results: int = int(TOP_K_RESULTS)
     load_all_available_meta: bool = False
-    doc_content_chars_max: int = 4000
+    doc_content_chars_max: int = int(DOC_CONTENT_CHARS_MAX)
     wikidata_props: List[str] = DEFAULT_PROPERTIES
     lang: str = DEFAULT_LANG_CODE
 
@@ -100,7 +50,7 @@ class WikidataAPIWrapper(BaseModel):
             from mediawikiapi.config import Config
 
             values["wikidata_mw"] = MediaWikiAPI(
-                #Config(user_agent=WIKIDATA_USER_AGENT, mediawiki_url=WIKIDATA_API_URL)
+                Config(user_agent=WIKIDATA_USER_AGENT, mediawiki_url=WIKIDATA_API_URL)
             )
         except ImportError:
             raise ImportError(
@@ -131,7 +81,7 @@ class WikidataAPIWrapper(BaseModel):
         fluent_client: FluentWikibaseClient = FluentWikibaseClient(
             self.wikidata_rest, supported_props=self.wikidata_props, lang=self.lang
         )
-        resp = fluent_client.get_item(qid)
+        resp = fluent_client.get_item(qid.strip('Item:'))
 
         if not resp:
             logger.warning(f"Could not find item {qid} in Wikidata")
@@ -150,7 +100,7 @@ class WikidataAPIWrapper(BaseModel):
 
         return Document(
             page_content=("\n".join(doc_lines))[: self.doc_content_chars_max],
-            meta={"title": qid, "source": f"https://www.wikidata.org/wiki/{qid}"},
+            meta={"title": qid, "source": f"{WIKIBASE_URL}/wiki/Item:{qid}"},
         )
 
     def load(self, query: str) -> List[Document]:
@@ -158,7 +108,7 @@ class WikidataAPIWrapper(BaseModel):
         Run Wikidata search and get the item documents plus the meta information.
         """
 
-        clipped_query = query[:WIKIDATA_MAX_QUERY_LENGTH]
+        clipped_query = 'Item:'+query[:WIKIDATA_MAX_QUERY_LENGTH]
         items = self.wikidata_mw.search(clipped_query, results=self.top_k_results)
         docs = []
         for item in items[: self.top_k_results]:
@@ -170,7 +120,7 @@ class WikidataAPIWrapper(BaseModel):
     def run(self, query: str) -> str:
         """Run Wikidata search and get item summaries."""
 
-        clipped_query = query[:WIKIDATA_MAX_QUERY_LENGTH]
+        clipped_query = 'Item:'+query[:WIKIDATA_MAX_QUERY_LENGTH]
         items = self.wikidata_mw.search(clipped_query, results=self.top_k_results)
 
         docs = []

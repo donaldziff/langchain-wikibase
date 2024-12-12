@@ -1,31 +1,47 @@
 import gradio as gr
-
-import gemini_module
-
-from gemini_module import answer_the_question
+import gemini_agent
+import gemini_simple
+from gemini_agent import agent_chat
+from gemini_simple import simple_chat
 
 import os
+from dotenv import load_dotenv
 
-LANGCHAIN_TRACING_V2=os.getenv('LANGCHAIN_TRACING_V2')
-LANGCHAIN_API_KEY=os.getenv('LANGCHAIN_API_KEY')
-GOOGLE_API_KEY=os.getenv('GOOGLE_API_KEY')
+load_dotenv()
 
-def result(question, history):
-    answer = answer_the_question(question)
-    return answer['output']
+checkbox = gr.Checkbox(label='Use Wikidata/Wikibase Knowledge Graph.')
 
-demo = gr.ChatInterface(
+def result(question, history, checkbox):
+    if checkbox:
+      r = agent_chat(
+              question,
+              gemini_agent.agent_with_chat_history
+              )
+      answer = r['output']
+    else:
+      answer = simple_chat(
+              question,
+              gemini_simple.chat_session
+              )
+    return answer
+
+chat = gr.ChatInterface(
     result, 
-    chatbot=gr.Chatbot(height=300),
-    #textbox=gr.Textbox(placeholder="Faça uma pergunta sobre alguma informação da Wikidata:", container=False, scale=7),
-    title="Wikidata Chat ✨",
-    description="Faça uma pergunta para a Wikidata!",
+    chatbot=gr.Chatbot(height=550),
+    title="Wikibase Chat ✨",
+    description="Ask a question to you local Wikibase Knowledge Graph or Wikidata!",
     theme="soft",
-    examples=['Qual o PIB do Brasil?', 'Qual a população de São Paulo', "Quem foi Albert Einstein?"],
+    examples=[
+        ['What is Google?'],
+        ['What is the Google inception date? Search for the property \'inception\''],
+        ["What is the US GDP?"],
+    ],
     cache_examples=False,
-    undo_btn="⬅️ Apagar último",
-    clear_btn="🗑️ Limpar",
+    retry_btn="🔄 Try again",
+    undo_btn="⬅️ Delete last",
+    clear_btn="🗑️ Clear",
+    additional_inputs=[checkbox]
     )
 
 if __name__ == "__main__":
-    demo.launch(server_name="10.0.2.88")
+    chat.launch(server_name=str(os.getenv('UI_SERVER_NAME')),server_port=int(os.getenv('UI_SERVER_PORT')))

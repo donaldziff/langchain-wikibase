@@ -5,7 +5,7 @@ from typing import Optional
 from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.tools import BaseTool
 
-from langchain_com.utilities import WikidataAPIWrapper
+from langchain_mod.utilities import WikidataAPIWrapper
 
 
 class WikidataQueryRun(BaseTool):

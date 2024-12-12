@@ -2,20 +2,32 @@ import os
 import requests
 import re
 import argparse
+import time
+from datetime import datetime
 
-from langchain.agents import AgentExecutor, create_react_agent
+from langchain.agents import AgentExecutor, create_react_agent, create_openai_tools_agent
+
 from langchain_openai import OpenAI
+
 from langchain.agents import tool
 from langchain.prompts import PromptTemplate
 from langchain.globals import set_debug
+
+from langchain_community.llms import Ollama
+
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_community.tools.wikidata.tool import WikidataAPIWrapper, WikidataQueryRun
+from google.generativeai.types.safety_types import HarmBlockThreshold, HarmCategory
 
 from wikibaseintegrator import wbi_helpers
 from wikibaseintegrator.wbi_config import config as wbi_config
 
 
 WB_LANGUAGE = 'en'
-WB_LIMIT = 10
+#WB_LANGUAGE = 'pt-br'
+WB_LIMIT = 200
 WB_USER_AGENT = 'MyWikibaseBot/1.0'
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 
 wbi_config['USER_AGENT'] = 'MyWikibaseBot/1.0'
 
@@ -31,7 +43,7 @@ def performSparqlQuery(query: str) -> str:
   url = "https://query.wikidata.org/sparql"
   user_agent_header = WB_USER_AGENT
 
-  query = query.lstrip('sparql').strip("'").strip('"').strip('`')
+  query = str(query).lstrip('sparql').strip('\n').strip("'").strip('"').strip('`')
 
   headers = {"Accept": "application/json"}
   if user_agent_header is not None:
@@ -42,27 +54,17 @@ def performSparqlQuery(query: str) -> str:
   )
 
 @tool
-def checkSparql(query: str) -> str:
-  """Given a SPARQL query check if is valid."""
-
-  response = performSparqlQuery(query)
-
-  if response.status_code != 200:
-      error_message = extract_error_message(response)
-      if error_message:
-          return f'Query failed with this syntax error: {error_message}, try to fix it with another one.'
-      else:
-        return 'Query failed, try another one.'
-
-  print(f"Sparql results: {response.json()}")
-
-  return 'Query is valid'
+def WikidataRetrieval(item: str) -> str:
+  """Returns all the information about the input name, label, Q item or property from Wikidata."""
+  wikidata = WikidataQueryRun(api_wrapper=WikidataAPIWrapper())
+  info = wikidata.run(item)
+  return str(info)
 
 @tool
 def runSparql(query: str) -> str:
   """Given a SPARQL query returns the results."""
 
-  response = performSparqlQuery(query)
+  response = performSparqlQuery(str(query))
 
   if response.status_code != 200:
       error_message = extract_error_message(response)
@@ -75,9 +77,9 @@ def runSparql(query: str) -> str:
 
 @tool
 def getQItem(name: str) -> str:
-  """Returns the Q item from my wikibase."""
+  """Returns the Q item from Wikidata."""
 
-  name = name.strip("'").strip('"')
+  name = str(name).strip("'").strip('"')
 
   data = {
     'action': 'wbsearchentities',
@@ -88,15 +90,15 @@ def getQItem(name: str) -> str:
   }
   result = wbi_helpers.mediawiki_api_call_helper(data=data, allow_anonymous=True)
   if result['search']:
-    return result['search'][0]['id']
+      return result['search'][0]['id']
   else:
     return 'Item not found by this name, try another name.'
 
 @tool
 def getProperty(name: str) -> str:
-  """Returns the property from my wikibase."""
+  """Returns the property from Wikidata."""
 
-  name = name.strip("'").strip('"')
+  name = str(name).strip("'").strip('"')
 
   data = {
     'action': 'wbsearchentities',
@@ -127,46 +129,49 @@ def load_prompt_file(full_path):
   return prompt
 
 
-def answer_the_question(question, final_answer):
+def answer_the_question(question):
 
-  if 'OPENAI_API_URL' in os.environ:
-      llm = OpenAI(openai_api_base=os.environ['OPENAI_API_URL'],
-            openai_api_key="dummy",
+  if 'OPENAI_API_KEY' in os.environ:
+      llm = OpenAI(
             temperature=0,
             top_p=0,
             max_tokens=1024,
             model_kwargs={"seed": 42})
+  elif 'GOOGLE_API_KEY' in os.environ:
+      llm = ChatGoogleGenerativeAI(
+              model="gemini-1.0-pro",
+              temperature=0,
+              top_p=0,
+              safety_settings = {
+                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE
+                }
+              )
   else:
-      llm = OpenAI(temperature=0,
-            top_p=0,
-            max_tokens=1024,
-            model_kwargs={"seed": 42})
+      llm = Ollama(
+              model="mixtral:latest",
+              temperature=0,
+              top_p=0)
 
-  if final_answer:
-    tools = [getQItem, getProperty, runSparql]
-    prompt = load_prompt_file('prompts/question-to-answer.prompt')
-  else:
-    tools = [getQItem, getProperty, checkSparql]
-    prompt = load_prompt_file('prompts/question-to-sparql.prompt')
+
+  tools = [getQItem, getProperty, runSparql, WikidataRetrieval]
+  prompt = load_prompt_file('prompts/gemini.prompt')
 
   agent = create_react_agent(llm, tools, prompt)
 
-  agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+  agent_executor = AgentExecutor(
+          agent=agent,
+          tools=tools,
+          verbose=True,
+          handle_parsing_errors=True,
+          early_stop_method='generate',
+          return_intermediate_steps=False,
+          max_iteration=10
+          )
 
   set_debug(False)
 
   result = agent_executor.invoke({"input": f"{question}"})
   return result
-
-
-def main():
-  parser = argparse.ArgumentParser(description='Wikibase agent.')
-  parser.add_argument('--question', type=str, required=True, help='Your question.')
-  parser.add_argument('--final-answer', action='store_true', help='Try to get an answer in natural language.')
-
-  args = parser.parse_args()
-  print(answer_the_question(args.question, args.final_answer))
-
-
-if __name__ == '__main__':
-  main()
